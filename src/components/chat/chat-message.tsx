@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, useMemo } from "react"
+import { memo, useCallback, useEffect, useRef, useState, useMemo, isValidElement, type ReactElement } from "react"
 import { useTranslation } from "react-i18next"
 import { convertFileSrc } from "@tauri-apps/api/core"
 import ReactMarkdown from "react-markdown"
@@ -1475,10 +1475,19 @@ function MarkdownContent({ content }: { content: string }) {
               const mermaid = unwrapMermaidPre(children)
               if (mermaid) return <>{mermaid}</>
               
-              // Extract code language and content for toolbar
-              const codeChild = Array.isArray(children) 
-                ? children.find(c => c?.type === 'code') 
-                : children?.type === 'code' ? children : null
+              // Extract code language and content for toolbar.
+              // ReactMarkdown renders <pre><code>...</code></pre>, so the code
+              // element is either the single child or the first element child.
+              type CodeElProps = { className?: string; children?: unknown }
+              const isCodeEl = (c: unknown): c is ReactElement<CodeElProps> =>
+                isValidElement(c) && c.type === 'code'
+              const findCodeEl = (): ReactElement<CodeElProps> | null => {
+                if (Array.isArray(children)) {
+                  return children.find(isCodeEl) ?? null
+                }
+                return isCodeEl(children) ? children : null
+              }
+              const codeChild = findCodeEl()
               const lang = codeChild?.props?.className?.replace('language-', '')
               const codeText = codeChild ? String(codeChild.props?.children ?? '').replace(/\n$/, '') : ''
 

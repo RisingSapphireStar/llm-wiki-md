@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, isValidElement, type ReactElement } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
@@ -230,10 +230,19 @@ export function WikiReader({ body, sourceBody, sourceOffset = 0, filePath }: Wik
             const mermaid = unwrapMermaidPre(children)
             if (mermaid) return <>{mermaid}</>
             
-            // Extract code language and content for toolbar
-            const codeChild = Array.isArray(children) 
-              ? children.find(c => c?.type === 'code') 
-              : children?.type === 'code' ? children : null
+            // Extract code language and content for toolbar.
+            // ReactMarkdown renders <pre><code>...</code></pre>, so the code
+            // element is either the single child or the first element child.
+            type CodeElProps = { className?: string; children?: unknown }
+            const isCodeEl = (c: unknown): c is ReactElement<CodeElProps> =>
+              isValidElement(c) && c.type === 'code'
+            const findCodeEl = (): ReactElement<CodeElProps> | null => {
+              if (Array.isArray(children)) {
+                return children.find(isCodeEl) ?? null
+              }
+              return isCodeEl(children) ? children : null
+            }
+            const codeChild = findCodeEl()
             const lang = codeChild?.props?.className?.replace('language-', '')
             const codeText = codeChild ? String(codeChild.props?.children ?? '').replace(/\n$/, '') : ''
 
